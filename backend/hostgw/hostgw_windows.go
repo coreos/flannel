@@ -160,26 +160,6 @@ func (be *HostgwBackend) RegisterNetwork(ctx context.Context, wg sync.WaitGroup,
 			return nil, errors.Annotatef(err, "failed to create HNSNetwork %s", networkName)
 		}
 
-		// Wait for the network to populate Management IP
-		log.Infof("Waiting to get ManagementIP from HNSNetwork %s", networkName)
-		waitErr = wait.Poll(500*time.Millisecond, 5*time.Second, func() (done bool, err error) {
-			newNetwork, lastErr = hcsshim.HNSNetworkRequest("GET", newNetwork.Id, "")
-			return newNetwork != nil && len(newNetwork.ManagementIP) != 0, nil
-		})
-		if waitErr == wait.ErrWaitTimeout {
-			return nil, errors.Annotatef(lastErr, "timeout, failed to get management IP from HNSNetwork %s", networkName)
-		}
-
-		// Wait for the interface with the management IP
-		log.Infof("Waiting to get net interface for HNSNetwork %s (%s)", networkName, newNetwork.ManagementIP)
-		waitErr = wait.Poll(500*time.Millisecond, 5*time.Second, func() (done bool, err error) {
-			_, lastErr = netshHelper.GetInterfaceByIP(newNetwork.ManagementIP)
-			return lastErr == nil, nil
-		})
-		if waitErr == wait.ErrWaitTimeout {
-			return nil, errors.Annotatef(lastErr, "timeout, failed to get net interface for HNSNetwork %s (%s)", networkName, newNetwork.ManagementIP)
-		}
-
 		log.Infof("Created HNSNetwork %s", networkName)
 		expectedNetwork = newNetwork
 	}
@@ -227,6 +207,27 @@ func (be *HostgwBackend) RegisterNetwork(ctx context.Context, wg sync.WaitGroup,
 		return nil, errors.Annotatef(lastErr, "failed to hot attach bridge HNSEndpoint %s to host compartment", bridgeEndpointName)
 	}
 	log.Infof("Attached bridge endpoint %s to host successfully", bridgeEndpointName)
+
+	// Wait for the network to populate Management IP
+	log.Infof("Waiting to get ManagementIP from HNSNetwork %s", networkName)
+	currentNetworkId := expectedNetwork.Id
+	waitErr = wait.Poll(500*time.Millisecond, 5*time.Second, func() (done bool, err error) {
+		expectedNetwork, _ = hcsshim.HNSNetworkRequest("GET", currentNetworkId, "")
+		return expectedNetwork != nil && len(expectedNetwork.ManagementIP) != 0, nil
+	})
+	if waitErr == wait.ErrWaitTimeout {
+		return nil, errors.Annotatef(waitErr, "timeout, failed to get management IP from HNSNetwork %s", networkName)
+	}
+
+	// Wait for the interface with the management IP
+	log.Infof("Waiting to get net interface for HNSNetwork %s (%s)", networkName, expectedNetwork.ManagementIP)
+	waitErr = wait.Poll(500*time.Millisecond, 5*time.Second, func() (done bool, err error) {
+		_, lastErr = netshHelper.GetInterfaceByIP(expectedNetwork.ManagementIP)
+		return lastErr == nil, nil
+	})
+	if waitErr == wait.ErrWaitTimeout {
+		return nil, errors.Annotatef(lastErr, "timeout, failed to get net interface for HNSNetwork %s (%s)", networkName, expectedNetwork.ManagementIP)
+	}
 
 	// 7. Enable forwarding on the host interface and endpoint
 	for _, interfaceIpAddress := range []string{expectedNetwork.ManagementIP, expectedBridgeEndpoint.IPAddress.String()} {
