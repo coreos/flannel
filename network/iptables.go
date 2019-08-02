@@ -45,6 +45,21 @@ type IPTablesRule struct {
 	rulespec []string
 }
 
+func (r *IPTablesRule) Equal(o *IPTablesRule) bool {
+	if r == nil || o == nil {
+		return false
+	}
+	if r.chain != o.chain || r.table != o.table || len(r.rulespec) != len(o.rulespec) {
+		return false
+	}
+	for i := range r.rulespec {
+		if r.rulespec[i] != o.rulespec[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func MasqRules(ipn ip.IP4Net, lease *subnet.Lease) []IPTablesRule {
 	n := ipn.String()
 	sn := lease.Subnet.String()
@@ -79,6 +94,24 @@ func MasqRules(ipn ip.IP4Net, lease *subnet.Lease) []IPTablesRule {
 	}
 }
 
+func MasqRulesToDelete(ipn ip.IP4Net, lease *subnet.Lease) []IPTablesRule {
+	n := ipn.String()
+	sn := lease.Subnet.String()
+
+	return []IPTablesRule{
+		// This rule makes sure we don't NAT traffic within overlay network (e.g. coming out of docker0)
+		{"nat", "POSTROUTING", []string{"-s", n, "-d", n, "-j", "RETURN"}},
+		// NAT if it's not multicast traffic
+		{"nat", "POSTROUTING", []string{"-s", n, "!", "-d", "224.0.0.0/4", "-j", "MASQUERADE", "--random-fully"}},
+		{"nat", "POSTROUTING", []string{"-s", n, "!", "-d", "224.0.0.0/4", "-j", "MASQUERADE"}},
+		// Prevent performing Masquerade on external traffic which arrives from a Node that owns the container/pod IP address
+		{"nat", "POSTROUTING", []string{"!", "-s", n, "-d", sn, "-j", "RETURN"}},
+		// Masquerade anything headed towards flannel from the host
+		{"nat", "POSTROUTING", []string{"!", "-s", n, "-d", n, "-j", "MASQUERADE", "--random-fully"}},
+		{"nat", "POSTROUTING", []string{"!", "-s", n, "-d", n, "-j", "MASQUERADE"}},
+	}
+}
+
 func ForwardRules(flannelNetwork string) []IPTablesRule {
 	return []IPTablesRule{
 		// These rules allow traffic to be forwarded if it is to or from the flannel network range.
@@ -102,7 +135,7 @@ func ipTablesRulesExist(ipt IPTables, rules []IPTablesRule) (bool, error) {
 	return true, nil
 }
 
-func SetupAndEnsureIPTables(rules []IPTablesRule, resyncPeriod int) {
+func SetupAndEnsureIPTables(rules []IPTablesRule, rulesToDelete []IPTablesRule, resyncPeriod int) {
 	ipt, err := iptables.New()
 	if err != nil {
 		// if we can't find iptables, give up and return
@@ -111,12 +144,12 @@ func SetupAndEnsureIPTables(rules []IPTablesRule, resyncPeriod int) {
 	}
 
 	defer func() {
-		teardownIPTables(ipt, rules)
+		teardownIPTables(ipt, rulesToDelete)
 	}()
 
 	for {
 		// Ensure that all the iptables rules exist every 5 seconds
-		if err := ensureIPTables(ipt, rules); err != nil {
+		if err := ensureIPTables(ipt, rules, rulesToDelete); err != nil {
 			log.Errorf("Failed to ensure iptables rules: %v", err)
 		}
 
@@ -136,19 +169,40 @@ func DeleteIPTables(rules []IPTablesRule) error {
 	return nil
 }
 
-func ensureIPTables(ipt IPTables, rules []IPTablesRule) error {
+func ensureIPTables(ipt IPTables, rules []IPTablesRule, rulesToDelete []IPTablesRule) error {
 	exists, err := ipTablesRulesExist(ipt, rules)
 	if err != nil {
 		return fmt.Errorf("Error checking rule existence: %v", err)
 	}
-	if exists {
+	ensureDelete := make([]IPTablesRule, 0)
+	for _, ruleToDelete := range rulesToDelete {
+		ruleExist := false
+		for _, rule := range rules {
+			if rule.Equal(&ruleToDelete) {
+				ruleExist = true
+				break
+			}
+		}
+		if !ruleExist {
+			ensureDelete = append(ensureDelete, ruleToDelete)
+		}
+	}
+	deleteExists := false
+	if len(ensureDelete) != 0 {
+		deleteExists, err = ipTablesRulesExist(ipt, ensureDelete)
+		if err != nil {
+			return fmt.Errorf("Error checking rule existence: %v", err)
+		}
+	}
+
+	if exists && !deleteExists {
 		// if all the rules already exist, no need to do anything
 		return nil
 	}
 	// Otherwise, teardown all the rules and set them up again
 	// We do this because the order of the rules is important
 	log.Info("Some iptables rules are missing; deleting and recreating rules")
-	if err = teardownIPTables(ipt, rules); err != nil {
+	if err = teardownIPTables(ipt, rulesToDelete); err != nil {
 		return fmt.Errorf("Error tearing down rules: %v", err)
 	}
 	if err = setupIPTables(ipt, rules); err != nil {

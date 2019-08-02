@@ -303,7 +303,7 @@ func main() {
 			os.Exit(1)
 		}
 		log.Infof("Setting up masking rules")
-		go network.SetupAndEnsureIPTables(network.MasqRules(config.Network, bn.Lease()), opts.iptablesResyncSeconds)
+		go network.SetupAndEnsureIPTables(network.MasqRules(config.Network, bn.Lease()), network.MasqRulesToDelete(config.Network, bn.Lease()), opts.iptablesResyncSeconds)
 	}
 
 	// Always enables forwarding rules. This is needed for Docker versions >1.13 (https://docs.docker.com/engine/userguide/networking/default_network/container-communication/#container-communication-between-hosts)
@@ -311,7 +311,7 @@ func main() {
 	// In Docker 1.13 and later, Docker sets the default policy of the FORWARD chain to DROP.
 	if opts.iptablesForwardRules {
 		log.Infof("Changing default FORWARD chain policy to ACCEPT")
-		go network.SetupAndEnsureIPTables(network.ForwardRules(config.Network.String()), opts.iptablesResyncSeconds)
+		go network.SetupAndEnsureIPTables(network.ForwardRules(config.Network.String()), network.ForwardRules(config.Network.String()), opts.iptablesResyncSeconds)
 	}
 
 	if err := WriteSubnetFile(opts.subnetFile, config.Network, opts.ipMasq, bn); err != nil {
@@ -356,7 +356,7 @@ func recycleIPTables(nw ip.IP4Net, lease *subnet.Lease) error {
 		lease := &subnet.Lease{
 			Subnet: prevSubnet,
 		}
-		if err := network.DeleteIPTables(network.MasqRules(prevNetwork, lease)); err != nil {
+		if err := network.DeleteIPTables(network.MasqRulesToDelete(prevNetwork, lease)); err != nil {
 			return err
 		}
 	}
