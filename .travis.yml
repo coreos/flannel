@@ -17,3 +17,11 @@ after_success:
     fi
 notifications:
   email: false
+
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:wireguard/wireguard'
+    packages:
+      - wireguard
+      - linux-headers-$(uname -r)
