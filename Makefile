@@ -46,7 +46,7 @@ dist/flanneld.exe: $(shell find . -type f  -name '*.go')
 
 # This will build flannel natively using golang image
 dist/flanneld-$(ARCH): dist/qemu-$(ARCH)-static
-	# valid values for ARCH are [amd64 arm arm64 ppc64le s390x]
+	# valid values for ARCH are [amd64 arm arm64 ppc64le mips64le s390x]
 	docker run -e CGO_ENABLED=$(CGO_ENABLED) -e GOARCH=$(ARCH) \
 		-u $(shell id -u):$(shell id -g) \
 		-v $(CURDIR)/dist/qemu-$(ARCH)-static:/usr/bin/qemu-$(ARCH)-static \
@@ -134,6 +134,7 @@ release: tar.gz dist/qemu-s390x-static dist/qemu-ppc64le-static dist/qemu-aarch6
 	ARCH=arm make dist/flanneld-$(TAG)-arm.docker
 	ARCH=arm64 make dist/flanneld-$(TAG)-arm64.docker
 	ARCH=ppc64le make dist/flanneld-$(TAG)-ppc64le.docker
+	ARCH=mips64le make dist/flanneld-$(TAG)-mips64le.docker
 	ARCH=s390x make dist/flanneld-$(TAG)-s390x.docker
 	@echo "Everything should be built for $(TAG)"
 	@echo "Add all flanneld-* and *.tar.gz files from dist/ to the Github release"
@@ -148,7 +149,7 @@ dist/qemu-%-static:
 		wget -O dist/$(@F) https://github.com/multiarch/qemu-user-static/releases/download/$(QEMU_VERSION)/$(@F); \
 	fi 
 
-## Build a .tar.gz for the amd64 ppc64le arm arm64 flanneld binary
+## Build a .tar.gz for the amd64 ppc64le mips64le arm arm64 flanneld binary
 tar.gz:
 	ARCH=amd64 make dist/flanneld-amd64
 	tar --transform='flags=r;s|-amd64||' -zcvf dist/flannel-$(TAG)-linux-amd64.tar.gz -C dist flanneld-amd64 mk-docker-opts.sh ../README.md
@@ -159,6 +160,9 @@ tar.gz:
 	ARCH=ppc64le make dist/flanneld-ppc64le
 	tar --transform='flags=r;s|-ppc64le||' -zcvf dist/flannel-$(TAG)-linux-ppc64le.tar.gz -C dist flanneld-ppc64le mk-docker-opts.sh ../README.md
 	tar -tvf dist/flannel-$(TAG)-linux-ppc64le.tar.gz
+	ARCH=mips64le make dist/flanneld-mips64le
+	tar --transform='flags=r;s|-mips64le||' -zcvf dist/flannel-$(TAG)-linux-mips64le.tar.gz -C dist flanneld-mips64le mk-docker-opts.sh ../README.md
+	tar -tvf dist/flannel-$(TAG)-linux-mips64le.tar.gz
 	ARCH=arm make dist/flanneld-arm
 	tar --transform='flags=r;s|-arm||' -zcvf dist/flannel-$(TAG)-linux-arm.tar.gz -C dist flanneld-arm mk-docker-opts.sh ../README.md
 	tar -tvf dist/flannel-$(TAG)-linux-arm.tar.gz
@@ -199,6 +203,7 @@ docker-push-all:
 	ARCH=arm make docker-push
 	ARCH=arm64 make docker-push
 	ARCH=ppc64le make docker-push
+	ARCH=mips64le make docker-push
 	ARCH=s390x make docker-push
 
 flannel-git:
@@ -208,6 +213,7 @@ flannel-git:
 	ARCH=arm REGISTRY=quay.io/coreos/flannel-git make clean dist/flanneld-$(TAG)-arm.docker docker-push
 	ARCH=arm64 REGISTRY=quay.io/coreos/flannel-git make clean dist/flanneld-$(TAG)-arm64.docker docker-push
 	ARCH=ppc64le REGISTRY=quay.io/coreos/flannel-git make clean dist/flanneld-$(TAG)-ppc64le.docker docker-push
+	ARCH=mips64le REGISTRY=quay.io/coreos/flannel-git make clean dist/flanneld-$(TAG)-mips64le.docker docker-push
 	ARCH=s390x REGISTRY=quay.io/coreos/flannel-git make clean dist/flanneld-$(TAG)-s390x.docker docker-push
 
 ### DEVELOPING

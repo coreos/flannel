@@ -1,0 +1,9 @@
+FROM mips64le/busybox:glibc
+
+ENV FLANNEL_ARCH=mips64le
+
+COPY dist/flanneld-$FLANNEL_ARCH /opt/bin/flanneld
+COPY dist/iptables-$FLANNEL_ARCH /usr/local/bin/iptables
+COPY dist/mk-docker-opts.sh /opt/bin/
+
+ENTRYPOINT ["/opt/bin/flanneld"]
