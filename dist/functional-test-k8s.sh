@@ -77,7 +77,8 @@ teardown() {
 start_flannel() {
     local backend=$1
 
-	flannel_conf="{ \"Network\": \"$FLANNEL_NET\", \"Backend\": { \"Type\": \"${backend}\" } }"
+    flannel_conf="{ \"Network\": \"$FLANNEL_NET\", \"Backend\": { \"Type\": \"${backend}\" } }"
+
     for host_num in 1 2; do
        docker rm -f flannel-e2e-test-flannel$host_num >/dev/null 2>/dev/null
        docker run -e NODE_NAME=flannel$host_num --privileged --name flannel-e2e-test-flannel$host_num -id --entrypoint /bin/sh $FLANNEL_DOCKER_IMAGE >/dev/null
@@ -140,6 +141,12 @@ test_public-ip-overwrite(){
   # Remove annotation to not break all other tests
   docker exec flannel-e2e-k8s-apiserver kubectl annotate node flannel1 \
     flannel.alpha.coreos.com/public-ip-overwrite- >/dev/null 2>&1
+}
+
+test_wireguard() {
+    start_flannel wireguard
+    create_ping_dest # creates ping_dest1 and ping_dest2 variables
+    pings
 }
 
 pings() {

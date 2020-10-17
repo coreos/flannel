@@ -1,0 +1,9 @@
+{
+  "Network": "10.10.0.0/16",
+  "Backend": {
+    "Type": "wireguard",
+    "ListenPort": 51820,
+    "PSK": "H0Ad2yKBMgfGM6/Yt2dRxd8u+juyViCz3KdJfEdteJ8=",
+    "PersistentKeepaliveInterval": 300
+  }
+}

@@ -117,6 +117,12 @@ test_ipsec_ping() {
     pings
 }
 
+test_wireguard_ping() {
+    write_config_etcd wireguard
+    create_ping_dest # creates ping_dest1 and ping_dest2 variables
+    pings
+}
+
 pings() {
     # ping in both directions
     assert "docker exec --privileged flannel-e2e-test-flannel1 /bin/ping -I $ping_dest1 -c 3 $ping_dest2" "Host 1 cannot ping host 2"
@@ -156,11 +162,11 @@ test_ipsec_perf() {
     perf
 }
 
-#test_wireguard_perf() {
-#    write_config_etcd extension-wireguard
-#    create_ping_dest
-#    perf
-#}
+test_wireguard_perf() {
+    write_config_etcd wireguard
+    create_ping_dest
+    perf
+}
 
 perf() {
     # Perf test - run iperf server on flannel1 and client on flannel2
