@@ -16,9 +16,11 @@
 package vxlan
 
 import (
+	"bytes"
 	"encoding/json"
 	"net"
 	"sync"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/vishvananda/netlink"
@@ -35,6 +37,9 @@ type network struct {
 	backend.SimpleNetwork
 	dev       *vxlanDevice
 	subnetMgr subnet.Manager
+
+	directRoutes []netlink.Route
+	GetRoute     func(lease *subnet.Lease) *netlink.Route
 }
 
 const (
@@ -51,6 +56,13 @@ func newNetwork(subnetMgr subnet.Manager, extIface *backend.ExternalInterface, d
 		dev:       dev,
 	}
 
+	nw.GetRoute = func(lease *subnet.Lease) *netlink.Route {
+		return &netlink.Route{
+			Dst: lease.Subnet.ToIPNet(),
+			Gw:  lease.Attrs.PublicIP.ToIP(),
+		}
+	}
+
 	return nw, nil
 }
 
@@ -63,6 +75,13 @@ func (nw *network) Run(ctx context.Context) {
 	go func() {
 		subnet.WatchLeases(ctx, nw.subnetMgr, nw.SubnetLease, events)
 		log.V(1).Info("WatchLeases exited")
+		wg.Done()
+	}()
+
+	nw.directRoutes = make([]netlink.Route, 0, 10)
+	wg.Add(1)
+	go func() {
+		nw.directRouteCheck(ctx)
 		wg.Done()
 	}()
 
@@ -131,6 +150,9 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 			if directRoutingOK {
 				log.V(2).Infof("Adding direct route to subnet: %s PublicIP: %s", sn, attrs.PublicIP)
 
+				route := nw.GetRoute(&event.Lease)
+				nw.addToDirectRouteList(*route)
+
 				if err := netlink.RouteReplace(&directRoute); err != nil {
 					log.Errorf("Error adding route to %v via %v: %v", sn, attrs.PublicIP, err)
 					continue
@@ -173,6 +195,10 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 		case subnet.EventRemoved:
 			if directRoutingOK {
 				log.V(2).Infof("Removing direct route to subnet: %s PublicIP: %s", sn, attrs.PublicIP)
+
+				route := nw.GetRoute(&event.Lease)
+				nw.removeFromDirectRouteList(*route)
+
 				if err := netlink.RouteDel(&directRoute); err != nil {
 					log.Errorf("Error deleting route to %v via %v: %v", sn, attrs.PublicIP, err)
 				}
@@ -196,4 +222,72 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 			log.Error("internal error: unknown event type: ", int(event.Type))
 		}
 	}
+}
+
+func (nw *network) directRouteCheck(ctx context.Context) {
+	for {
+		const directRouteCheckRetries = 10
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(directRouteCheckRetries * time.Second):
+			nw.checkSubnetExistInDirectRoutes()
+		}
+	}
+}
+
+func (nw *network) checkSubnetExistInDirectRoutes() {
+	routeList, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	if err == nil {
+		for _, route := range nw.directRoutes {
+			exist := false
+			for _, r := range routeList {
+				if r.Dst == nil {
+					continue
+				}
+				if routeEqual(r, route) {
+					exist = true
+					break
+				}
+			}
+
+			if !exist {
+				if err := netlink.RouteAdd(&route); err != nil {
+					if nerr, ok := err.(net.Error); !ok {
+						log.Errorf("Error recovering route to %v: %v, %v", route.Dst, route.Gw, nerr)
+					}
+					continue
+				} else {
+					log.Infof("Route recovered %v : %v", route.Dst, route.Gw)
+				}
+			}
+		}
+	} else {
+		log.Errorf("Error fetching route list. Will automatically retry: %v", err)
+	}
+}
+
+func (nw *network) addToDirectRouteList(route netlink.Route) {
+	for _, r := range nw.directRoutes {
+		if routeEqual(r, route) {
+			return
+		}
+	}
+	nw.directRoutes = append(nw.directRoutes, route)
+}
+
+func (nw *network) removeFromDirectRouteList(route netlink.Route) {
+	for index, r := range nw.directRoutes {
+		if routeEqual(r, route) {
+			nw.directRoutes = append(nw.directRoutes[:index], nw.directRoutes[index+1:]...)
+			return
+		}
+	}
+}
+
+func routeEqual(x, y netlink.Route) bool {
+	if x.Dst.IP.Equal(y.Dst.IP) && x.Gw.Equal(y.Gw) && bytes.Equal(x.Dst.Mask, y.Dst.Mask) && x.LinkIndex == y.LinkIndex {
+		return true
+	}
+	return false
 }
