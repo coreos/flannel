@@ -150,7 +150,7 @@ func TestEtcdRegistry(t *testing.T) {
 	if resp == nil || resp.Node == nil {
 		t.Fatal("Failed to retrive node in subnet lease")
 	}
-	if resp.Node.Value != "{\"PublicIP\":\"1.2.3.4\"}" {
+	if resp.Node.Value != "{\"PublicIP\":\"1.2.3.4\",\"PublicIPv6\":null}" {
 		t.Fatalf("Unexpected subnet lease node %s value %s", resp.Node.Key, resp.Node.Value)
 	}
 

@@ -44,6 +44,32 @@ func TestConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestIPv6ConfigDefaults(t *testing.T) {
+	s := `{ "enableIPv6": true, "ipv6Network": "fc00::/48" }`
+
+	cfg, err := ParseConfig(s)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %s", err)
+	}
+
+	expectedNet := "fc00::/48"
+	if cfg.IPv6Network.String() != expectedNet {
+		t.Errorf("IPv6Network mismatch: expected %s, got %s", expectedNet, cfg.IPv6Network)
+	}
+
+	if cfg.IPv6SubnetMin.String() != "fc00:0:0:1::" {
+		t.Errorf("IPv6SubnetMin mismatch, expected fc00:0:0:1::, got %s", cfg.IPv6SubnetMin)
+	}
+
+	if cfg.IPv6SubnetMax.String() != "fc00:0:0:ffff::" {
+		t.Errorf("IPv6SubnetMax mismatch, expected fc00:0:0:ffff::, got %s", cfg.IPv6SubnetMax)
+	}
+
+	if cfg.IPv6SubnetLen != 64 {
+		t.Errorf("IPv6SubnetLen mismatch: expected 64, got %d", cfg.IPv6SubnetLen)
+	}
+}
+
 func TestConfigOverrides(t *testing.T) {
 	s := `{ "Network": "10.3.0.0/16", "SubnetMin": "10.3.5.0", "SubnetMax": "10.3.8.0", "SubnetLen": 28 }`
 
@@ -67,5 +93,31 @@ func TestConfigOverrides(t *testing.T) {
 
 	if cfg.SubnetLen != 28 {
 		t.Errorf("SubnetLen mismatch: expected 28, got %d", cfg.SubnetLen)
+	}
+}
+
+func TestIPv6ConfigOverrides(t *testing.T) {
+	s := `{ "EnableIPv6": true, "IPv6Network": "fc00::/48", "IPv6SubnetMin": "fc00:0:0:1::", "IPv6SubnetMax": "fc00:0:0:f::", "IPv6SubnetLen": 124 }`
+
+	cfg, err := ParseConfig(s)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %s", err)
+	}
+
+	expectedNet := "fc00::/48"
+	if cfg.IPv6Network.String() != expectedNet {
+		t.Errorf("IPv6Network mismatch: expected %s, got %s", expectedNet, cfg.IPv6Network)
+	}
+
+	if cfg.IPv6SubnetMin.String() != "fc00:0:0:1::" {
+		t.Errorf("IPv6SubnetMin mismatch: expected fc00:0:0:1::, got %s", cfg.IPv6SubnetMin)
+	}
+
+	if cfg.IPv6SubnetMax.String() != "fc00:0:0:f::" {
+		t.Errorf("IPv6SubnetMax mismatch: expected fc00:0:0:f::, got %s", cfg.IPv6SubnetMax)
+	}
+
+	if cfg.IPv6SubnetLen != 124 {
+		t.Errorf("IPv6SubnetLen mismatch: expected 124, got %d", cfg.IPv6SubnetLen)
 	}
 }

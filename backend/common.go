@@ -24,9 +24,11 @@ import (
 )
 
 type ExternalInterface struct {
-	Iface     *net.Interface
-	IfaceAddr net.IP
-	ExtAddr   net.IP
+	Iface       *net.Interface
+	IfaceAddr   net.IP
+	IfaceV6Addr net.IP
+	ExtAddr     net.IP
+	ExtV6Addr   net.IP
 }
 
 // Besides the entry points in the Backend interface, the backend's New()

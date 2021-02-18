@@ -103,6 +103,10 @@ func (m *LocalManager) AcquireLease(ctx context.Context, attrs *LeaseAttrs) (*Le
 		l, err := m.tryAcquireLease(ctx, config, attrs.PublicIP, attrs)
 		switch err {
 		case nil:
+			//TODO - temporarily compatible with dual stack,
+			// only vxlan backend and kube subnet manager support dual stack now.
+			l.EnableIPv4 = true
+			l.EnableIPv6 = false
 			return l, nil
 		case errTryAgain:
 			continue
@@ -288,6 +292,11 @@ func (m *LocalManager) leaseWatchReset(ctx context.Context, sn ip.IP4Net) (Lease
 		return LeaseWatchResult{}, err
 	}
 
+	//TODO - temporarily compatible with dual stack,
+	// only vxlan backend and kube subnet manager support dual stack now.
+	l.EnableIPv4 = true
+	l.EnableIPv6 = false
+
 	return LeaseWatchResult{
 		Snapshot: []Lease{*l},
 		Cursor:   watchCursor{index},
@@ -308,6 +317,10 @@ func (m *LocalManager) WatchLease(ctx context.Context, sn ip.IP4Net, cursor inte
 
 	switch {
 	case err == nil:
+		//TODO - temporarily compatible with dual stack,
+		// only vxlan backend and kube subnet manager support dual stack now.
+		evt.Lease.EnableIPv4 = true
+		evt.Lease.EnableIPv6 = false
 		return LeaseWatchResult{
 			Events: []Event{evt},
 			Cursor: watchCursor{index},
@@ -333,9 +346,12 @@ func (m *LocalManager) WatchLeases(ctx context.Context, cursor interface{}) (Lea
 	}
 
 	evt, index, err := m.registry.watchSubnets(ctx, nextIndex)
-
 	switch {
 	case err == nil:
+		//TODO - temporarily compatible with dual stack,
+		// only vxlan backend and kube subnet manager support dual stack now.
+		evt.Lease.EnableIPv4 = true
+		evt.Lease.EnableIPv6 = false
 		return LeaseWatchResult{
 			Events: []Event{evt},
 			Cursor: watchCursor{index},

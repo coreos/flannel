@@ -35,13 +35,13 @@ func newDummyRegistry() *MockSubnetRegistry {
 
 	subnets := []Lease{
 		// leases within SubnetMin-SubnetMax range
-		{ip.IP4Net{ip.MustParseIP4("10.3.1.0"), 24}, attrs, exp, 10},
-		{ip.IP4Net{ip.MustParseIP4("10.3.2.0"), 24}, attrs, exp, 11},
-		{ip.IP4Net{ip.MustParseIP4("10.3.4.0"), 24}, attrs, exp, 12},
-		{ip.IP4Net{ip.MustParseIP4("10.3.5.0"), 24}, attrs, exp, 13},
+		{true, false, ip.IP4Net{ip.MustParseIP4("10.3.1.0"), 24}, ip.IP6Net{}, attrs, exp, 10},
+		{true, false, ip.IP4Net{ip.MustParseIP4("10.3.2.0"), 24}, ip.IP6Net{}, attrs, exp, 11},
+		{true, false, ip.IP4Net{ip.MustParseIP4("10.3.4.0"), 24}, ip.IP6Net{}, attrs, exp, 12},
+		{true, false, ip.IP4Net{ip.MustParseIP4("10.3.5.0"), 24}, ip.IP6Net{}, attrs, exp, 13},
 
 		// hand created lease outside the range of subnetMin-SubnetMax for testing removal
-		{ip.IP4Net{ip.MustParseIP4("10.3.31.0"), 24}, attrs, exp, 13},
+		{true, false, ip.IP4Net{ip.MustParseIP4("10.3.31.0"), 24}, ip.IP6Net{}, attrs, exp, 13},
 	}
 
 	config := `{ "Network": "10.3.0.0/16", "SubnetMin": "10.3.1.0", "SubnetMax": "10.3.25.0" }`
