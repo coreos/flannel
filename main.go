@@ -102,10 +102,11 @@ type CmdLineOpts struct {
 }
 
 var (
-	opts           CmdLineOpts
-	errInterrupted = errors.New("interrupted")
-	errCanceled    = errors.New("canceled")
-	flannelFlags   = flag.NewFlagSet("flannel", flag.ExitOnError)
+	opts            CmdLineOpts
+	errInterrupted  = errors.New("interrupted")
+	errCanceled     = errors.New("canceled")
+	flannelFlags    = flag.NewFlagSet("flannel", flag.ExitOnError)
+	flannelFwdChain = "FLANNEL-FORWARD"
 )
 
 func init() {
@@ -301,6 +302,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Infof("inserting rules")
+	network.InsertRules(network.RulesToInsert(flannelFwdChain))
+
 	// Set up ipMasq if needed
 	if opts.ipMasq {
 		if err = recycleIPTables(config.Network, bn.Lease()); err != nil {
@@ -318,7 +322,11 @@ func main() {
 	// In Docker 1.13 and later, Docker sets the default policy of the FORWARD chain to DROP.
 	if opts.iptablesForwardRules {
 		log.Infof("Changing default FORWARD chain policy to ACCEPT")
-		go network.SetupAndEnsureIPTables(network.ForwardRules(config.Network.String()), opts.iptablesResyncSeconds)
+		if err = network.AddNewChain("filter", flannelFwdChain); err != nil {
+			//fall back to FORWARD chain
+			flannelFwdChain = "FORWARD"
+		}
+		go network.SetupAndEnsureIPTables(network.ForwardRules(flannelFwdChain, config.Network.String()), opts.iptablesResyncSeconds)
 	}
 
 	if err := WriteSubnetFile(opts.subnetFile, config.Network, opts.ipMasq, bn); err != nil {
