@@ -1,6 +1,16 @@
 language: go
+
+services:
+  - docker
+
 go:
- - release
+  - "1.11.x"
+
+before_script:
+  - docker-compose up -d strongswan
 
 script:
- - go test -v
+  - docker-compose run app go test -v ./...
+
+after_script:
+  - docker-compose down -v

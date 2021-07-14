@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/Microsoft/hcsshim v0.8.6
 	github.com/aws/aws-sdk-go v1.12.54
-	github.com/bronze1man/goStrongswanVici v0.0.0-20171013065002-4d72634a2f11
+	github.com/bronze1man/goStrongswanVici v0.0.0-20201105010758-936f38b697fd
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/etcd v3.1.11+incompatible
 	github.com/coreos/go-iptables v0.4.5

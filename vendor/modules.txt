@@ -50,7 +50,7 @@ github.com/aws/aws-sdk-go/private/protocol/rest
 github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
 github.com/aws/aws-sdk-go/service/ec2
 github.com/aws/aws-sdk-go/service/sts
-# github.com/bronze1man/goStrongswanVici v0.0.0-20171013065002-4d72634a2f11
+# github.com/bronze1man/goStrongswanVici v0.0.0-20201105010758-936f38b697fd
 ## explicit
 github.com/bronze1man/goStrongswanVici
 # github.com/containernetworking/plugins v0.8.6
@@ -91,8 +91,6 @@ github.com/go-logr/logr
 # github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
-# github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-## explicit
 # github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.4.2

@@ -11,8 +11,10 @@ type IkeSa struct {
 	Version         string               `json:"version"`
 	State           string               `json:"state"` //had saw: ESTABLISHED
 	Local_host      string               `json:"local-host"`
+	Local_port      string               `json:"local-port"`
 	Local_id        string               `json:"local-id"`
 	Remote_host     string               `json:"remote-host"`
+	Remote_port     string               `json:"remote-port"`
 	Remote_id       string               `json:"remote-id"`
 	Remote_xauth_id string               `json:"remote-xauth-id"` //client username
 	Initiator       string               `json:"initiator"`

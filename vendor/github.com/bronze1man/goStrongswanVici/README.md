@@ -31,6 +31,22 @@ a golang implement of strongswan vici plugin client.
 
 If you need some commands, but it is not here .you can implement yourself, and send a pull request to this project.
 
+### Testing
+
+To test the library's functionality, `docker-compose` is used to spin up strongswan in a separate Docker container.
+
+```bash
+$ docker-compose up -V
+Creating network "gostrongswanvici_default" with the default drive
+Creating volume "gostrongswanvici_charondata" with default driver
+Creating gostrongswanvici_strongswan_1 ... done
+Creating gostrongswanvici_go-test_1    ... done
+Attaching to gostrongswanvici_strongswan_1, gostrongswanvici_go-test_1
+...
+go-test_1     | ok      github.com/RenaultAI/goStrongswanVici   0.017s
+gostrongswanvici_go-test_1 exited with code 0
+```
+
 ### example
 ```go
 package main
@@ -134,7 +150,7 @@ func main(){
 			}
 	err = client.UnloadConn(unloadConnReq)
 	if err != nil {
-		panic(error)
+		panic(err)
 	}
 
 	// kill all conns in strongswan
