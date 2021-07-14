@@ -15,6 +15,7 @@
 package subnet
 
 import (
+	"bytes"
 	"time"
 
 	"golang.org/x/net/context"
@@ -110,7 +111,11 @@ func (lw *leaseWatcher) reset(leases []Lease) []Event {
 			} else if !ol.EnableIPv4 && !ol.EnableIPv6 && ol.Subnet.Equal(nl.Subnet) {
 				//TODO - dual-stack temporarily only compatible with kube subnet manager
 				lw.leases = deleteLease(lw.leases, i)
-				found = true
+
+				// If the backend data has changed, send the added event to the backend
+				if bytes.Compare(ol.Attrs.BackendData, nl.Attrs.BackendData) == 0 {
+					found = true
+				}
 				break
 			}
 		}
@@ -121,7 +126,7 @@ func (lw *leaseWatcher) reset(leases []Lease) []Event {
 		}
 	}
 
-	// everything left in sm.leases has been deleted
+	// everything left in lw.leases has been deleted
 	for _, l := range lw.leases {
 		if lw.ownLease != nil && l.EnableIPv4 && !l.EnableIPv6 &&
 			l.Subnet.Equal(lw.ownLease.Subnet) {
