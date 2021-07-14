@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/flannel-io/flannel/pkg/ip"
@@ -141,7 +142,18 @@ func newKubeSubnetManager(ctx context.Context, c clientset.Interface, sc *subnet
 	ksm.client = c
 	ksm.nodeName = nodeName
 	ksm.subnetConf = sc
-	ksm.events = make(chan subnet.Event, 5000)
+	scale := 5000
+	scaleStr := os.Getenv("K8S_SCALE")
+	if scaleStr != "" {
+		n, err := strconv.Atoi(scaleStr)
+		if err != nil {
+			return nil, fmt.Errorf("env K8S_SCALE=%s format error: %v", scaleStr, err)
+		}
+		if n > 0 {
+			scale = n
+		}
+	}
+	ksm.events = make(chan subnet.Event, scale)
 	indexer, controller := cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {

@@ -206,6 +206,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: K8S_SCALE
+          value: "5000"
         volumeMounts:
         - name: run
           mountPath: /run/flannel
